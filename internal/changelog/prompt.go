@@ -2,6 +2,8 @@ package changelog
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/manifoldco/promptui"
@@ -78,9 +80,15 @@ func PromptForNewTag(mostRecentTag string) (bool, string, error) {
 // PromptForRepositories prompts the user to enter the list of repositories to generate the changelog for
 func PromptForRepositories() ([]string, error) {
 	var repositories []string
+	fmt.Println("Enter the paths to your Git repositories.")
+	fmt.Println("You can use relative paths:")
+	fmt.Println("  - '.' for the current directory")
+	fmt.Println("  - '../repo-name' for a sibling directory")
+	fmt.Println("  - Or any other relative or absolute path")
+
 	for {
 		prompt := promptui.Prompt{
-			Label: "Enter a repository name (or press Enter to finish)",
+			Label: "Enter a repository path (or press Enter to finish)",
 		}
 		result, err := prompt.Run()
 		if err != nil {
@@ -89,7 +97,22 @@ func PromptForRepositories() ([]string, error) {
 		if result == "" {
 			break
 		}
-		repositories = append(repositories, result)
+
+		// Convert relative path to absolute path
+		absPath, err := filepath.Abs(result)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve path %s: %v", result, err)
+		}
+
+		// Verify that the path exists
+		if _, err := os.Stat(absPath); os.IsNotExist(err) {
+			fmt.Printf("Warning: Path %s does not exist. Please enter a valid path.\n", absPath)
+			continue
+		}
+
+		repositories = append(repositories, absPath)
+		fmt.Printf("Added repository: %s\n", absPath)
 	}
+
 	return repositories, nil
 }

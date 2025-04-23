@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"changelog-generator/internal/changelog"
 )
@@ -91,15 +92,31 @@ func writeOutputFiles(changelogContent string) error {
 		return fmt.Errorf("error rendering markdown: %w", err)
 	}
 
-	// Render and write HTML
-	if err := changelog.RenderHTML(changelogContent); err != nil {
-		return fmt.Errorf("error rendering HTML: %w", err)
+	// Check if release-notes.html exists
+	if _, err := os.Stat("release-notes.html"); err == nil {
+		// File exists, render and write HTML
+		if err := changelog.RenderHTML(changelogContent); err != nil {
+			return fmt.Errorf("error rendering HTML: %w", err)
+		}
+	} else if os.IsNotExist(err) {
+		// File doesn't exist, skip HTML rendering
+		fmt.Println("release-notes.html not found, skipping HTML generation")
+	} else {
+		// Some other error occurred
+		return fmt.Errorf("error checking release-notes.html: %w", err)
 	}
 
 	return nil
 }
 
 func main() {
+	// Get the current working directory
+	cwd, err := os.Getwd()
+	if err != nil {
+		fmt.Printf("Error getting current directory: %v\n", err)
+		os.Exit(1)
+	}
+
 	// Prompt user for the list of repositories
 	repositories, err := changelog.PromptForRepositories()
 	if err != nil {
@@ -109,8 +126,19 @@ func main() {
 
 	// Process each repository
 	for _, repo := range repositories {
+		// Change into the current working directory
+		if err := os.Chdir(cwd); err != nil {
+			fmt.Printf("Error changing directory: %v\n", err)
+			continue
+		}
+
 		if err := processRepository(repo); err != nil {
 			fmt.Printf("Error processing repository %s: %v\n", repo, err)
 		}
+	}
+
+	// Change back to the original directory
+	if err := os.Chdir(filepath.Dir(os.Args[0])); err != nil {
+		fmt.Printf("Error changing back to original directory: %v\n", err)
 	}
 }
