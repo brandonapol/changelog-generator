@@ -24,7 +24,7 @@ A command-line tool for generating changelogs and release notes from Git commits
 3. Build the executable:
 
    ```
-   go build ./...
+   go build -o changelog-generator ./cmd/changelog
    ```
 
 ## Usage
