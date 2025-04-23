@@ -4,44 +4,37 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"time"
 )
 
 var conventionalCommitTypes = "fix|feat|build|ci|docs|perf|refactor|revert|style|test"
 
 // GenerateChangelog generates the changelog content from the given commits for multiple repositories
-func GenerateChangelog(repositories []string, fromTag, toTag string) string {
-	var changelog string
-	for _, repo := range repositories {
-		commits, err := FetchCommits(repo, fromTag, toTag)
-		if err != nil {
-			fmt.Printf("Error fetching commits for repository %s: %v\n", repo, err)
-			continue
-		}
-
-		features, bugfixes, others := categorizeCommits(commits)
-
-		// Format the categorized commits into changelog sections
-		formattedFeatures := formatChangelogSection(features, "Features")
-		formattedBugfixes := formatChangelogSection(bugfixes, "Bug Fixes")
-		formattedOthers := formatChangelogSection(others, "Other Changes")
-
-		// Prepare the changelog content for the repository
-		repoChangelog := fmt.Sprintf("## Changelog for %s (%s)\n", repo, time.Now().Format("2006-01-02"))
-		repoChangelog += fmt.Sprintf("%s → %s\n\n", fromTag, toTag)
-
-		if formattedFeatures != "" {
-			repoChangelog += fmt.Sprintf("### Features\n%s\n\n", formattedFeatures)
-		}
-		if formattedBugfixes != "" {
-			repoChangelog += fmt.Sprintf("### Bug Fixes\n%s\n\n", formattedBugfixes)
-		}
-		if formattedOthers != "" {
-			repoChangelog += fmt.Sprintf("### Other Changes\n%s\n\n", formattedOthers)
-		}
-
-		changelog += repoChangelog
+func GenerateChangelog(repoCommits map[string][]string) string {
+	var features, bugfixes, others []string
+	for _, commits := range repoCommits {
+		repoFeatures, repoBugfixes, repoOthers := categorizeCommits(commits)
+		features = append(features, repoFeatures...)
+		bugfixes = append(bugfixes, repoBugfixes...)
+		others = append(others, repoOthers...)
 	}
+
+	// Format the categorized commits into changelog sections
+	formattedFeatures := formatChangelogSection(features, "Features")
+	formattedBugfixes := formatChangelogSection(bugfixes, "Bug Fixes")
+	formattedOthers := formatChangelogSection(others, "Other Changes")
+
+	// Prepare the combined changelog content
+	changelog := "## Combined Changelog\n\n"
+	if formattedFeatures != "" {
+		changelog += fmt.Sprintf("### Features\n%s\n\n", formattedFeatures)
+	}
+	if formattedBugfixes != "" {
+		changelog += fmt.Sprintf("### Bug Fixes\n%s\n\n", formattedBugfixes)
+	}
+	if formattedOthers != "" {
+		changelog += fmt.Sprintf("### Other Changes\n%s\n\n", formattedOthers)
+	}
+
 	return changelog
 }
 

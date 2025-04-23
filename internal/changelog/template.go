@@ -3,6 +3,7 @@ package changelog
 import (
 	"bytes"
 	"embed"
+	"fmt"
 	"html/template"
 	"os"
 	"time"
@@ -41,14 +42,28 @@ func RenderMarkdown(changelog string) error {
 
 // RenderHTML renders the changelog in HTML format and writes it to internal/changelog/output/release-notes.html
 func RenderHTML(changelog string) error {
+	// Check if release-notes.html already exists
+	releaseNotesPath := "internal/changelog/output/release-notes.html"
+	existingReleaseNotes := ""
+	if _, err := os.Stat(releaseNotesPath); err == nil {
+		// File exists, read contents
+		content, err := os.ReadFile(releaseNotesPath)
+		if err != nil {
+			return fmt.Errorf("failed to read existing release notes: %v", err)
+		}
+		existingReleaseNotes = string(content)
+	}
+
+	// Parse template
 	tmpl, err := template.ParseFS(templateFS, "templates/release-notes.html")
 	if err != nil {
 		return err
 	}
 
+	// Append new changelog to existing release notes
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, map[string]interface{}{
-		"Changelog":   template.HTML(changelog),
+		"Changelog":   template.HTML(existingReleaseNotes + "\n" + changelog),
 		"AppName":     "MyApp",
 		"AppVersion":  "3.0.3",
 		"ReleaseDate": time.Now().Format("January 2, 2006"),
@@ -56,11 +71,11 @@ func RenderHTML(changelog string) error {
 		return err
 	}
 
+	// Write updated release notes to file  
 	if err := os.MkdirAll("internal/changelog/output", os.ModePerm); err != nil {
 		return err
 	}
-
-	if err := os.WriteFile("internal/changelog/output/release-notes.html", buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(releaseNotesPath, buf.Bytes(), 0644); err != nil {
 		return err
 	}
 

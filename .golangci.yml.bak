@@ -1,14 +1,11 @@
-# https://golangci-lint.run/usage/configuration/
-version: 1.55.0
-
+# Simple configuration for golangci-lint
 run:
-  timeout: 5m
+  deadline: 5m
   tests: true
 
 linters:
   enable:
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
@@ -16,4 +13,7 @@ linters:
     - unused
     - gofmt
     - goimports
-    - misspell
+  disable:
+    - deadcode # deprecated
+    - varcheck # deprecated
+    - structcheck # deprecated

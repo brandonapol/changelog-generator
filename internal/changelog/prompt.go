@@ -35,19 +35,33 @@ func PromptForTags(repoPath string, tags []string) (string, string, error) {
 // PromptForCommits prompts the user to select the commits to include in the changelog
 func PromptForCommits(commits []string) ([]string, error) {
 	var selectedCommits []string
-	for _, commit := range commits {
-		prompt := promptui.Prompt{
-			Label:     fmt.Sprintf("Include commit '%s' in changelog?", commit),
-			IsConfirm: true,
+
+	fmt.Println("Select commits to include in changelog (Enter to select, Esc when done):")
+
+	remainingCommits := make([]string, len(commits))
+	copy(remainingCommits, commits)
+
+	for len(remainingCommits) > 0 {
+		prompt := promptui.Select{
+			Label: "Select a commit to include (or press Esc to finish)",
+			Items: remainingCommits,
+			Size:  10,
 		}
-		result, err := prompt.Run()
-		if err != nil && err != promptui.ErrAbort {
-			return nil, fmt.Errorf("failed to prompt for commit: %v", err)
+
+		idx, _, err := prompt.Run()
+		if err != nil {
+			if err == promptui.ErrInterrupt || err == promptui.ErrAbort {
+				break
+			}
+			return nil, fmt.Errorf("failed to prompt for commits: %v", err)
 		}
-		if strings.ToLower(result) == "y" {
-			selectedCommits = append(selectedCommits, commit)
-		}
+
+		selectedCommits = append(selectedCommits, remainingCommits[idx])
+
+		// Remove the selected commit from the list
+		remainingCommits = append(remainingCommits[:idx], remainingCommits[idx+1:]...)
 	}
+
 	return selectedCommits, nil
 }
 

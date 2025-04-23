@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"changelog-generator/internal/changelog"
+	"github.com/brandonapol/changelog-generator/internal/changelog"
 )
 
 // processRepository handles all steps for a single repository
@@ -76,8 +76,13 @@ func generateChangelogContent(repo, fromTag, toTag string) (string, error) {
 		return "", fmt.Errorf("error selecting commits: %w", err)
 	}
 
+	// Create a map of repository paths to selected commits
+	repoCommits := map[string][]string{
+		repo: selectedCommits,
+	}
+
 	// Generate the changelog content
-	return changelog.GenerateChangelog(selectedCommits, fromTag, toTag), nil
+	return changelog.GenerateChangelog(repoCommits), nil
 }
 
 // writeOutputFiles writes the generated changelog to markdown and HTML files
