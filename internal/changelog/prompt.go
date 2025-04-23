@@ -73,10 +73,15 @@ func PromptForNewTag(mostRecentTag string) (bool, string, error) {
 	}
 	result, err := prompt.Run()
 	if err != nil {
+		if err == promptui.ErrAbort {
+			// User aborted, return false with no error
+			return false, "", nil
+		}
+		// Real error with initial prompt, return it
 		return false, "", fmt.Errorf("failed to prompt for creating new tag: %v", err)
 	}
-	createNewTag := strings.ToLower(result) == "y"
 
+	createNewTag := strings.ToLower(result) == "y"
 	if createNewTag {
 		prompt := promptui.Prompt{
 			Label: "Enter new tag name",
@@ -88,6 +93,7 @@ func PromptForNewTag(mostRecentTag string) (bool, string, error) {
 		return true, newTag, nil
 	}
 
+	// User chose not to create tag, return false with no error
 	return false, "", nil
 }
 
