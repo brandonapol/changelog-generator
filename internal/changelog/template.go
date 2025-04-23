@@ -6,34 +6,31 @@ import (
 	"fmt"
 	"html/template"
 	"os"
-	"time"
+	"strings"
 )
 
 //go:embed templates/*
 var templateFS embed.FS
 
 // RenderMarkdown renders the changelog in Markdown format and writes it to internal/changelog/output/CHANGELOG.md
-func RenderMarkdown(changelog string) error {
-	tmpl, err := template.New("markdown").Parse(`# Changelog
-
-{{ .Changelog }}
-`)
-	if err != nil {
-		return err
+func RenderMarkdown(changelog, appVersion, releaseDate string) error {
+	// Read existing CHANGELOG.md content
+	existingContent, err := os.ReadFile("internal/changelog/output/CHANGELOG.md")
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to read CHANGELOG.md: %v", err)
 	}
 
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, map[string]interface{}{
-		"Changelog": changelog,
-	}); err != nil {
-		return err
-	}
+	// Prepare the new changelog content
+	newContent := fmt.Sprintf("## Changelog (%s)\nApp Version: %s\n\n%s\n", releaseDate, appVersion, changelog)
 
+	// Prepend the new content to the existing content
+	finalContent := newContent + string(existingContent)
+
+	// Write the updated content to CHANGELOG.md
 	if err := os.MkdirAll("internal/changelog/output", os.ModePerm); err != nil {
 		return err
 	}
-
-	if err := os.WriteFile("internal/changelog/output/CHANGELOG.md", buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile("internal/changelog/output/CHANGELOG.md", []byte(finalContent), 0644); err != nil {
 		return err
 	}
 
@@ -41,43 +38,90 @@ func RenderMarkdown(changelog string) error {
 }
 
 // RenderHTML renders the changelog in HTML format and writes it to internal/changelog/output/release-notes.html
-func RenderHTML(changelog string) error {
-	// Check if release-notes.html already exists
-	releaseNotesPath := "internal/changelog/output/release-notes.html"
-	existingReleaseNotes := ""
-	if _, err := os.Stat(releaseNotesPath); err == nil {
-		// File exists, read contents
-		content, err := os.ReadFile(releaseNotesPath)
-		if err != nil {
-			return fmt.Errorf("failed to read existing release notes: %v", err)
-		}
-		existingReleaseNotes = string(content)
+func RenderHTML(changelog string, appVersion, releaseDate string, features, bugfixes, others []string) error {
+	// Parse the existing release-notes.html file
+	existingContent, err := os.ReadFile("internal/changelog/output/release-notes.html")
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to read release-notes.html: %v", err)
 	}
 
-	// Parse template
+	// Extract the existing release sections
+	existingSections := ""
+	if len(existingContent) > 0 {
+		startIndex := bytes.Index(existingContent, []byte("<div class=\"notes-container\">"))
+		endIndex := bytes.Index(existingContent, []byte("</div>"))
+		if startIndex != -1 && endIndex != -1 {
+			existingSections = string(existingContent[startIndex+30 : endIndex])
+		}
+	}
+
+	// Generate the new release section
+	newSection := fmt.Sprintf(`
+		<div class="release-section">
+			<div class="release-version">
+				<span>Version %s</span>
+				<span class="release-date">%s</span>
+			</div>
+			
+			<h3 class="change-category">Features</h3>
+			<ul class="change-list">
+				%s
+			</ul>
+			
+			<h3 class="change-category">Bug Fixes</h3>
+			<ul class="change-list">
+				%s
+			</ul>
+			
+			<h3 class="change-category">Other Changes</h3>
+			<ul class="change-list">
+				%s
+			</ul>
+		</div>
+	`, appVersion, releaseDate, formatChangeList(features), formatChangeList(bugfixes), formatChangeList(others))
+
+	// Combine the existing sections with the new section
+	combinedSections := newSection + existingSections
+
+	// Parse the HTML template
 	tmpl, err := template.ParseFS(templateFS, "templates/release-notes.html")
 	if err != nil {
 		return err
 	}
 
-	// Append new changelog to existing release notes
+	// Render the template with the updated release sections
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, map[string]interface{}{
-		"Changelog":   template.HTML(existingReleaseNotes + "\n" + changelog),
 		"AppName":     "MyApp",
-		"AppVersion":  "3.0.3",
-		"ReleaseDate": time.Now().Format("January 2, 2006"),
+		"AppVersion":  appVersion,
+		"ReleaseDate": releaseDate,
+		"Changelog":   template.HTML(combinedSections),
 	}); err != nil {
 		return err
 	}
 
-	// Write updated release notes to file  
+	// Write the updated release notes to file
 	if err := os.MkdirAll("internal/changelog/output", os.ModePerm); err != nil {
 		return err
 	}
-	if err := os.WriteFile(releaseNotesPath, buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile("internal/changelog/output/release-notes.html", buf.Bytes(), 0644); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// formatChangeList formats a list of changes as HTML list items
+func formatChangeList(changes []string) string {
+	if len(changes) == 0 {
+		return "<li>No changes</li>"
+	}
+
+	var sb strings.Builder
+	for _, change := range changes {
+		sb.WriteString("<li>")
+		sb.WriteString(change)
+		sb.WriteString("</li>\n")
+	}
+	return sb.String()
 }

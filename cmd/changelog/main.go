@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/brandonapol/changelog-generator/internal/changelog"
 )
@@ -30,14 +32,20 @@ func processRepository(repo string) error {
 		return fmt.Errorf("error selecting tags: %w", err)
 	}
 
+	// Extract app version from the 'to' tag
+	appVersion := toTag
+
+	// Generate release date
+	releaseDate := time.Now().Format("January 2, 2006")
+
 	// Get commits and generate changelog
-	changelogContent, err := generateChangelogContent(repo, fromTag, toTag)
+	changelogContent, features, bugfixes, others, err := generateChangelogContent(repo, fromTag, toTag)
 	if err != nil {
 		return err
 	}
 
 	// Write output files
-	if err := writeOutputFiles(changelogContent); err != nil {
+	if err := writeOutputFiles(changelogContent, appVersion, releaseDate, features, bugfixes, others); err != nil {
 		return err
 	}
 
@@ -64,17 +72,17 @@ func handleTagOperations(repo string, tags []string) ([]string, error) {
 }
 
 // generateChangelogContent fetches commits and generates changelog content
-func generateChangelogContent(repo, fromTag, toTag string) (string, error) {
+func generateChangelogContent(repo, fromTag, toTag string) (string, []string, []string, []string, error) {
 	// Fetch commits between the selected tags
 	commits, err := changelog.FetchCommits(repo, fromTag, toTag)
 	if err != nil {
-		return "", fmt.Errorf("error fetching commits: %w", err)
+		return "", nil, nil, nil, fmt.Errorf("error fetching commits: %w", err)
 	}
 
 	// Prompt user to select commits to include
 	selectedCommits, err := changelog.PromptForCommits(commits)
 	if err != nil {
-		return "", fmt.Errorf("error selecting commits: %w", err)
+		return "", nil, nil, nil, fmt.Errorf("error selecting commits: %w", err)
 	}
 
 	// Create a map of repository paths to selected commits
@@ -83,33 +91,38 @@ func generateChangelogContent(repo, fromTag, toTag string) (string, error) {
 	}
 
 	// Generate the changelog content
-	return changelog.GenerateChangelog(repoCommits), nil
+	changelogContent := changelog.GenerateChangelog(repoCommits)
+
+	// Categorize the selected commits
+	var features, bugfixes, others []string
+	for _, commit := range selectedCommits {
+		if strings.HasPrefix(commit, "feat:") {
+			features = append(features, strings.TrimPrefix(commit, "feat: "))
+		} else if strings.HasPrefix(commit, "fix:") {
+			bugfixes = append(bugfixes, strings.TrimPrefix(commit, "fix: "))
+		} else {
+			others = append(others, commit)
+		}
+	}
+
+	return changelogContent, features, bugfixes, others, nil
 }
 
 // writeOutputFiles writes the generated changelog to markdown and HTML files
-func writeOutputFiles(changelogContent string) error {
+func writeOutputFiles(changelogContent string, appVersion, releaseDate string, features, bugfixes, others []string) error {
 	// Create output directory if it doesn't exist
 	if err := os.MkdirAll("internal/changelog/output", 0755); err != nil {
 		return fmt.Errorf("error creating output directory: %w", err)
 	}
 
 	// Render and write Markdown
-	if err := changelog.RenderMarkdown(changelogContent); err != nil {
+	if err := changelog.RenderMarkdown(changelogContent, appVersion, releaseDate); err != nil {
 		return fmt.Errorf("error rendering markdown: %w", err)
 	}
 
-	// Check if release-notes.html exists
-	if _, err := os.Stat("release-notes.html"); err == nil {
-		// File exists, render and write HTML
-		if err := changelog.RenderHTML(changelogContent); err != nil {
-			return fmt.Errorf("error rendering HTML: %w", err)
-		}
-	} else if os.IsNotExist(err) {
-		// File doesn't exist, skip HTML rendering
-		fmt.Println("release-notes.html not found, skipping HTML generation")
-	} else {
-		// Some other error occurred
-		return fmt.Errorf("error checking release-notes.html: %w", err)
+	// Render and write HTML
+	if err := changelog.RenderHTML(changelogContent, appVersion, releaseDate, features, bugfixes, others); err != nil {
+		return fmt.Errorf("error rendering HTML: %w", err)
 	}
 
 	return nil
