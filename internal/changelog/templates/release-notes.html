@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .AppName }} Release Notes</title>
+    <style>
+        /* ... existing styles ... */
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="app-info">
+                <h1>{{ .AppName }}</h1>
+            </div>
+            <p>Release Notes</p>
+        </header>
+        
+        <div class="version-info">
+            <div class="version-details">
+                <div>{{ .AppName }} Version: <strong>{{ .AppVersion }}</strong></div>
+            </div>
+            <div>Released: <strong>{{ .ReleaseDate }}</strong></div>
+        </div>
+        
+        <div class="notes-container">
+            {{ .Changelog }}
+        </div>
+        
+        <footer>
+            <p>{{ .ReleaseDate }} Radiance Technologies</p>
+        </footer>
+    </div>
+</body>
+</html> 
