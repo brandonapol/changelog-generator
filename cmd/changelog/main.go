@@ -135,14 +135,18 @@ func writeOutputFiles(changelogContent string, appVersion, releaseDate string, f
 	}
 
 	// Render and write Markdown
+	fmt.Printf("Rendering Markdown changelog to %s...\n", changelogFile)
 	if err := changelog.RenderMarkdown(changelogContent, appVersion, releaseDate, changelogFile); err != nil {
 		return fmt.Errorf("error rendering markdown: %w", err)
 	}
+	fmt.Printf("Successfully rendered Markdown changelog to %s\n", changelogFile)
 
 	// Render and write HTML
+	fmt.Printf("Rendering HTML changelog to %s...\n", releaseNotesFile)
 	if err := changelog.RenderHTML(changelogContent, appVersion, releaseDate, features, bugfixes, others, releaseNotesFile); err != nil {
 		return fmt.Errorf("error rendering HTML: %w", err)
 	}
+	fmt.Printf("Successfully rendered HTML changelog to %s\n", releaseNotesFile)
 
 	return nil
 }
