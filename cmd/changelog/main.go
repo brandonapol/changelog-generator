@@ -44,8 +44,27 @@ func processRepository(repo string) error {
 		return err
 	}
 
+	// Search for CHANGELOG.md and release-notes.html files
+	var changelogFile, releaseNotesFile string
+	err = filepath.Walk(repo, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			if info.Name() == "CHANGELOG.md" {
+				changelogFile = path
+			} else if info.Name() == "release-notes.html" {
+				releaseNotesFile = path
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("error searching for files: %w", err)
+	}
+
 	// Write output files
-	if err := writeOutputFiles(changelogContent, appVersion, releaseDate, features, bugfixes, others); err != nil {
+	if err := writeOutputFiles(changelogContent, appVersion, releaseDate, features, bugfixes, others, changelogFile, releaseNotesFile); err != nil {
 		return err
 	}
 
@@ -109,19 +128,19 @@ func generateChangelogContent(repo, fromTag, toTag string) (string, []string, []
 }
 
 // writeOutputFiles writes the generated changelog to markdown and HTML files
-func writeOutputFiles(changelogContent string, appVersion, releaseDate string, features, bugfixes, others []string) error {
+func writeOutputFiles(changelogContent string, appVersion, releaseDate string, features, bugfixes, others []string, changelogFile, releaseNotesFile string) error {
 	// Create output directory if it doesn't exist
 	if err := os.MkdirAll("internal/changelog/output", 0755); err != nil {
 		return fmt.Errorf("error creating output directory: %w", err)
 	}
 
 	// Render and write Markdown
-	if err := changelog.RenderMarkdown(changelogContent, appVersion, releaseDate); err != nil {
+	if err := changelog.RenderMarkdown(changelogContent, appVersion, releaseDate, changelogFile); err != nil {
 		return fmt.Errorf("error rendering markdown: %w", err)
 	}
 
 	// Render and write HTML
-	if err := changelog.RenderHTML(changelogContent, appVersion, releaseDate, features, bugfixes, others); err != nil {
+	if err := changelog.RenderHTML(changelogContent, appVersion, releaseDate, features, bugfixes, others, releaseNotesFile); err != nil {
 		return fmt.Errorf("error rendering HTML: %w", err)
 	}
 

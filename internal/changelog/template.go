@@ -12,12 +12,16 @@ import (
 //go:embed templates/*
 var templateFS embed.FS
 
-// RenderMarkdown renders the changelog in Markdown format and writes it to internal/changelog/output/CHANGELOG.md
-func RenderMarkdown(changelog, appVersion, releaseDate string) error {
+// RenderMarkdown renders the changelog in Markdown format and writes it to the provided file path
+func RenderMarkdown(changelog, appVersion, releaseDate, changelogFile string) error {
+	if changelogFile == "" {
+		return nil
+	}
+
 	// Read existing CHANGELOG.md content
-	existingContent, err := os.ReadFile("internal/changelog/output/CHANGELOG.md")
+	existingContent, err := os.ReadFile(changelogFile)
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to read CHANGELOG.md: %v", err)
+		return fmt.Errorf("failed to read %s: %v", changelogFile, err)
 	}
 
 	// Prepare the new changelog content
@@ -27,22 +31,23 @@ func RenderMarkdown(changelog, appVersion, releaseDate string) error {
 	finalContent := newContent + string(existingContent)
 
 	// Write the updated content to CHANGELOG.md
-	if err := os.MkdirAll("internal/changelog/output", os.ModePerm); err != nil {
-		return err
-	}
-	if err := os.WriteFile("internal/changelog/output/CHANGELOG.md", []byte(finalContent), 0644); err != nil {
-		return err
+	if err := os.WriteFile(changelogFile, []byte(finalContent), 0644); err != nil {
+		return fmt.Errorf("failed to write %s: %v", changelogFile, err)
 	}
 
 	return nil
 }
 
-// RenderHTML renders the changelog in HTML format and writes it to internal/changelog/output/release-notes.html
-func RenderHTML(changelog string, appVersion, releaseDate string, features, bugfixes, others []string) error {
+// RenderHTML renders the changelog in HTML format and writes it to the provided file path
+func RenderHTML(changelog string, appVersion, releaseDate string, features, bugfixes, others []string, releaseNotesFile string) error {
+	if releaseNotesFile == "" {
+		return nil
+	}
+
 	// Parse the existing release-notes.html file
-	existingContent, err := os.ReadFile("internal/changelog/output/release-notes.html")
+	existingContent, err := os.ReadFile(releaseNotesFile)
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to read release-notes.html: %v", err)
+		return fmt.Errorf("failed to read %s: %v", releaseNotesFile, err)
 	}
 
 	// Extract the existing release sections
@@ -56,7 +61,7 @@ func RenderHTML(changelog string, appVersion, releaseDate string, features, bugf
 			existingSections = string(existingContent[startIndex+30 : endIndex])
 		} else {
 			// If we can't find the proper structure, just initialize with empty sections
-			fmt.Println("Warning: Could not parse existing sections in release-notes.html, starting with empty content")
+			fmt.Printf("Warning: Could not parse existing sections in %s, starting with empty content\n", releaseNotesFile)
 		}
 	}
 
@@ -106,11 +111,8 @@ func RenderHTML(changelog string, appVersion, releaseDate string, features, bugf
 	}
 
 	// Write the updated release notes to file
-	if err := os.MkdirAll("internal/changelog/output", os.ModePerm); err != nil {
-		return err
-	}
-	if err := os.WriteFile("internal/changelog/output/release-notes.html", buf.Bytes(), 0644); err != nil {
-		return err
+	if err := os.WriteFile(releaseNotesFile, buf.Bytes(), 0644); err != nil {
+		return fmt.Errorf("failed to write %s: %v", releaseNotesFile, err)
 	}
 
 	return nil
