@@ -50,6 +50,9 @@ func processRepository(repo string) error {
 		if err != nil {
 			return err
 		}
+		if info.IsDir() && info.Name() == "node_modules" {
+			return filepath.SkipDir
+		}
 		if !info.IsDir() {
 			if info.Name() == "CHANGELOG.md" {
 				changelogFile = path
