@@ -74,3 +74,22 @@ func PromptForNewTag(mostRecentTag string) (bool, string, error) {
 
 	return false, "", nil
 }
+
+// PromptForRepositories prompts the user to enter the list of repositories to generate the changelog for
+func PromptForRepositories() ([]string, error) {
+	var repositories []string
+	for {
+		prompt := promptui.Prompt{
+			Label: "Enter a repository name (or press Enter to finish)",
+		}
+		result, err := prompt.Run()
+		if err != nil {
+			return nil, fmt.Errorf("failed to prompt for repository: %v", err)
+		}
+		if result == "" {
+			break
+		}
+		repositories = append(repositories, result)
+	}
+	return repositories, nil
+}

@@ -9,29 +9,39 @@ import (
 
 var conventionalCommitTypes = "fix|feat|build|ci|docs|perf|refactor|revert|style|test"
 
-// GenerateChangelog generates the changelog content from the given commits
-func GenerateChangelog(commits []string, fromTag, toTag string) string {
-	features, bugfixes, others := categorizeCommits(commits)
+// GenerateChangelog generates the changelog content from the given commits for multiple repositories
+func GenerateChangelog(repositories []string, fromTag, toTag string) string {
+	var changelog string
+	for _, repo := range repositories {
+		commits, err := FetchCommits(repo, fromTag, toTag)
+		if err != nil {
+			fmt.Printf("Error fetching commits for repository %s: %v\n", repo, err)
+			continue
+		}
 
-	// Format the categorized commits into changelog sections
-	formattedFeatures := formatChangelogSection(features, "Features")
-	formattedBugfixes := formatChangelogSection(bugfixes, "Bug Fixes")
-	formattedOthers := formatChangelogSection(others, "Other Changes")
+		features, bugfixes, others := categorizeCommits(commits)
 
-	// Prepare the changelog content
-	changelog := fmt.Sprintf("## Changelog (%s)\n", time.Now().Format("2006-01-02"))
-	changelog += fmt.Sprintf("%s → %s\n\n", fromTag, toTag)
+		// Format the categorized commits into changelog sections
+		formattedFeatures := formatChangelogSection(features, "Features")
+		formattedBugfixes := formatChangelogSection(bugfixes, "Bug Fixes")
+		formattedOthers := formatChangelogSection(others, "Other Changes")
 
-	if formattedFeatures != "" {
-		changelog += fmt.Sprintf("### Features\n%s\n\n", formattedFeatures)
+		// Prepare the changelog content for the repository
+		repoChangelog := fmt.Sprintf("## Changelog for %s (%s)\n", repo, time.Now().Format("2006-01-02"))
+		repoChangelog += fmt.Sprintf("%s → %s\n\n", fromTag, toTag)
+
+		if formattedFeatures != "" {
+			repoChangelog += fmt.Sprintf("### Features\n%s\n\n", formattedFeatures)
+		}
+		if formattedBugfixes != "" {
+			repoChangelog += fmt.Sprintf("### Bug Fixes\n%s\n\n", formattedBugfixes)
+		}
+		if formattedOthers != "" {
+			repoChangelog += fmt.Sprintf("### Other Changes\n%s\n\n", formattedOthers)
+		}
+
+		changelog += repoChangelog
 	}
-	if formattedBugfixes != "" {
-		changelog += fmt.Sprintf("### Bug Fixes\n%s\n\n", formattedBugfixes)
-	}
-	if formattedOthers != "" {
-		changelog += fmt.Sprintf("### Other Changes\n%s\n\n", formattedOthers)
-	}
-
 	return changelog
 }
 
