@@ -7,6 +7,98 @@ import (
 	"changelog-generator/internal/changelog"
 )
 
+// processRepository handles all steps for a single repository
+func processRepository(repo string) error {
+	fmt.Printf("Generating changelog for repository: %s\n", repo)
+
+	// Fetch all tags in the repository
+	tags, err := changelog.FetchTags(repo)
+	if err != nil {
+		return fmt.Errorf("error fetching tags: %w", err)
+	}
+
+	// Handle tag operations
+	tags, err = handleTagOperations(repo, tags)
+	if err != nil {
+		return err
+	}
+
+	// Get selected tags
+	fromTag, toTag, err := changelog.PromptForTags(repo, tags)
+	if err != nil {
+		return fmt.Errorf("error selecting tags: %w", err)
+	}
+
+	// Get commits and generate changelog
+	changelogContent, err := generateChangelogContent(repo, fromTag, toTag)
+	if err != nil {
+		return err
+	}
+
+	// Write output files
+	if err := writeOutputFiles(changelogContent); err != nil {
+		return err
+	}
+
+	fmt.Printf("Changelog generated successfully for repository: %s\n", repo)
+	return nil
+}
+
+// handleTagOperations handles operations related to tag creation
+func handleTagOperations(repo string, tags []string) ([]string, error) {
+	createNewTag, newTag, err := changelog.PromptForNewTag(tags[len(tags)-1])
+	if err != nil {
+		return nil, fmt.Errorf("error prompting for new tag: %w", err)
+	}
+
+	if createNewTag {
+		if err := changelog.CreateTag(repo, newTag); err != nil {
+			return nil, fmt.Errorf("error creating new tag: %w", err)
+		}
+		return append(tags, newTag), nil
+	}
+
+	return tags, nil
+}
+
+// generateChangelogContent fetches commits and generates changelog content
+func generateChangelogContent(repo, fromTag, toTag string) (string, error) {
+	// Fetch commits between the selected tags
+	commits, err := changelog.FetchCommits(repo, fromTag, toTag)
+	if err != nil {
+		return "", fmt.Errorf("error fetching commits: %w", err)
+	}
+
+	// Prompt user to select commits to include
+	selectedCommits, err := changelog.PromptForCommits(commits)
+	if err != nil {
+		return "", fmt.Errorf("error selecting commits: %w", err)
+	}
+
+	// Generate the changelog content
+	return changelog.GenerateChangelog(selectedCommits, fromTag, toTag), nil
+}
+
+// writeOutputFiles writes the generated changelog to markdown and HTML files
+func writeOutputFiles(changelogContent string) error {
+	// Create output directory if it doesn't exist
+	if err := os.MkdirAll("internal/changelog/output", 0755); err != nil {
+		return fmt.Errorf("error creating output directory: %w", err)
+	}
+
+	// Render and write Markdown
+	if err := changelog.RenderMarkdown(changelogContent); err != nil {
+		return fmt.Errorf("error rendering markdown: %w", err)
+	}
+
+	// Render and write HTML
+	if err := changelog.RenderHTML(changelogContent); err != nil {
+		return fmt.Errorf("error rendering HTML: %w", err)
+	}
+
+	return nil
+}
+
 func main() {
 	// Prompt user for the list of repositories
 	repositories, err := changelog.PromptForRepositories()
@@ -15,80 +107,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Process each repository
 	for _, repo := range repositories {
-		fmt.Printf("Generating changelog for repository: %s\n", repo)
-
-		// Fetch all tags in the repository
-		tags, err := changelog.FetchTags(repo)
-		if err != nil {
-			fmt.Printf("Error fetching tags for repository %s: %v\n", repo, err)
-			continue
+		if err := processRepository(repo); err != nil {
+			fmt.Printf("Error processing repository %s: %v\n", repo, err)
 		}
-
-		// Prompt user if they want to create a new tag
-		createNewTag, newTag, err := changelog.PromptForNewTag(tags[len(tags)-1])
-		if err != nil {
-			fmt.Printf("Error prompting for new tag for repository %s: %v\n", repo, err)
-			continue
-		}
-		if createNewTag {
-			if err := changelog.CreateTag(repo, newTag); err != nil {
-				fmt.Printf("Error creating new tag for repository %s: %v\n", repo, err)
-				continue
-			}
-			tags = append(tags, newTag)
-		}
-
-		// Prompt user to select from and to tags
-		fromTag, toTag, err := changelog.PromptForTags(repo, tags)
-		if err != nil {
-			fmt.Printf("Error selecting tags for repository %s: %v\n", repo, err)
-			continue
-		}
-
-		// Fetch commits between the selected tags
-		commits, err := changelog.FetchCommits(repo, fromTag, toTag)
-		if err != nil {
-			fmt.Printf("Error fetching commits for repository %s: %v\n", repo, err)
-			continue
-		}
-
-		// Prompt user to select commits to include
-		selectedCommits, err := changelog.PromptForCommits(commits)
-		if err != nil {
-			fmt.Printf("Error selecting commits for repository %s: %v\n", repo, err)
-			continue
-		}
-
-		// Generate the changelog content
-		changelogContent := changelog.GenerateChangelog(selectedCommits, fromTag, toTag)
-
-		// Render the changelog in Markdown format
-		markdownChangelog, err := changelog.RenderMarkdown(changelogContent)
-		if err != nil {
-			fmt.Printf("Error rendering Markdown for repository %s: %v\n", repo, err)
-			continue
-		}
-
-		// Render the changelog in HTML format
-		htmlChangelog, err := changelog.RenderHTML(changelogContent)
-		if err != nil {
-			fmt.Printf("Error rendering HTML for repository %s: %v\n", repo, err)
-			continue
-		}
-
-		// Write the Markdown changelog to internal/changelog/output/CHANGELOG.md
-		if err := os.WriteFile("internal/changelog/output/CHANGELOG.md", []byte(markdownChangelog), 0644); err != nil {
-			fmt.Printf("Error writing CHANGELOG.md for repository %s: %v\n", repo, err)
-			continue
-		}
-
-		// Write the HTML changelog to internal/changelog/output/release-notes.html
-		if err := os.WriteFile("internal/changelog/output/release-notes.html", []byte(htmlChangelog), 0644); err != nil {
-			fmt.Printf("Error writing release-notes.html for repository %s: %v\n", repo, err)
-			continue
-		}
-
-		fmt.Printf("Changelog generated successfully for repository: %s\n", repo)
 	}
 }
