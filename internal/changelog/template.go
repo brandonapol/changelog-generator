@@ -49,9 +49,14 @@ func RenderHTML(changelog string, appVersion, releaseDate string, features, bugf
 	existingSections := ""
 	if len(existingContent) > 0 {
 		startIndex := bytes.Index(existingContent, []byte("<div class=\"notes-container\">"))
-		endIndex := bytes.Index(existingContent, []byte("</div>"))
-		if startIndex != -1 && endIndex != -1 {
+		endIndex := bytes.LastIndex(existingContent, []byte("</div>"))
+
+		// Make sure indices are valid and in the right order
+		if startIndex != -1 && endIndex != -1 && startIndex+30 < endIndex && endIndex < len(existingContent) {
 			existingSections = string(existingContent[startIndex+30 : endIndex])
+		} else {
+			// If we can't find the proper structure, just initialize with empty sections
+			fmt.Println("Warning: Could not parse existing sections in release-notes.html, starting with empty content")
 		}
 	}
 
