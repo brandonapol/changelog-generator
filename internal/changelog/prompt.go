@@ -68,12 +68,12 @@ func PromptForCommits(commits []string) ([]string, error) {
 // PromptForNewTag prompts the user if they want to create a new tag based on the most recent tag
 func PromptForNewTag(mostRecentTag string) (bool, string, error) {
 	prompt := promptui.Prompt{
-		Label:     fmt.Sprintf("Last tag was %s, make a new tag?", mostRecentTag),
+		Label:     fmt.Sprintf("Last tag was %s, do you want to create a new tag?", mostRecentTag),
 		IsConfirm: true,
 	}
 	result, err := prompt.Run()
 	if err != nil {
-		return false, "", fmt.Errorf("failed to prompt for new tag: %v", err)
+		return false, "", fmt.Errorf("failed to prompt for creating new tag: %v", err)
 	}
 	createNewTag := strings.ToLower(result) == "y"
 

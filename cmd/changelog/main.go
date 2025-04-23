@@ -59,6 +59,7 @@ func handleTagOperations(repo string, tags []string) ([]string, error) {
 		return append(tags, newTag), nil
 	}
 
+	// Return original tags if user opted not to create a new one
 	return tags, nil
 }
 
