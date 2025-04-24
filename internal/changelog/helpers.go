@@ -130,15 +130,16 @@ func SelectCommits(repoPath, fromTag, toTag string) ([]string, error) {
 	}
 
 	// Run the prompt and get the selected indices
-	selectedIndices, _, err := prompt.RunCursorAt(0, 0)
+	selectedIndex, _, err := prompt.RunCursorAt(0, 0)
 	if err != nil {
 		return nil, err
 	}
 
-	// Extract the selected commits based on the indices
+	// Extract the selected commits based on the index
 	var selectedCommits []string
-	for _, index := range selectedIndices {
-		selectedCommits = append(selectedCommits, commits[index])
+	// Add the single selected commit (promptui.Select only returns a single selection)
+	if selectedIndex >= 0 && selectedIndex < len(commits) {
+		selectedCommits = append(selectedCommits, commits[selectedIndex])
 	}
 
 	return selectedCommits, nil
