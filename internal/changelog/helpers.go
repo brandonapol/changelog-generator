@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/manifoldco/promptui"
 )
 
 // GetTagsForRepo prompts the user to enter the from and to tags for a repository
@@ -16,29 +17,62 @@ func GetTagsForRepo(repoPath string) (string, string, error) {
 	fmt.Printf("Enter tags for %s:\n", repoPath)
 
 	var fromTag, toTag string
-	fmt.Print("From tag: ")
-	if _, err := fmt.Scanln(&fromTag); err != nil {
-		return "", "", fmt.Errorf("failed to read from tag: %w", err)
-	}
-	fmt.Print("To tag: ")
-	if _, err := fmt.Scanln(&toTag); err != nil {
-		return "", "", fmt.Errorf("failed to read to tag: %w", err)
-	}
+	for {
+		fmt.Print("From tag: ")
+		if _, err := fmt.Scanln(&fromTag); err != nil {
+			return "", "", fmt.Errorf("failed to read from tag: %w", err)
+		}
 
-	// Validate tags exist
-	cmd := exec.Command("git", "rev-parse", fromTag)
-	cmd.Dir = repoPath
-	if err := cmd.Run(); err != nil {
-		return "", "", fmt.Errorf("tag %s does not exist in %s", fromTag, repoPath)
-	}
+		fmt.Print("To tag: ")
+		if _, err := fmt.Scanln(&toTag); err != nil {
+			return "", "", fmt.Errorf("failed to read to tag: %w", err)
+		}
 
-	cmd = exec.Command("git", "rev-parse", toTag)
-	cmd.Dir = repoPath
-	if err := cmd.Run(); err != nil {
-		return "", "", fmt.Errorf("tag %s does not exist in %s", toTag, repoPath)
+		// Validate tags
+		if err := validateTag(repoPath, &fromTag); err != nil {
+			fmt.Printf("Error: %v\n", err)
+			continue
+		}
+		if err := validateTag(repoPath, &toTag); err != nil {
+			fmt.Printf("Error: %v\n", err)
+			continue
+		}
+
+		break
 	}
 
 	return fromTag, toTag, nil
+}
+
+func validateTag(repoPath string, tag *string) error {
+	for {
+		cmd := exec.Command("git", "rev-parse", *tag)
+		cmd.Dir = repoPath
+		if err := cmd.Run(); err != nil {
+			fmt.Printf("Tag %s does not exist. Enter a new tag or list all tags? (n/l): ", *tag)
+			var input string
+			if _, err := fmt.Scanln(&input); err != nil {
+				return fmt.Errorf("failed to read input: %w", err)
+			}
+
+			if input == "l" {
+				cmd := exec.Command("git", "tag")
+				cmd.Dir = repoPath
+				output, err := cmd.Output()
+				if err != nil {
+					return fmt.Errorf("failed to list tags: %w", err)
+				}
+				fmt.Printf("Available tags:\n%s\n", string(output))
+			}
+
+			fmt.Printf("Enter a new tag: ")
+			if _, err := fmt.Scanln(tag); err != nil {
+				return fmt.Errorf("failed to read tag: %w", err)
+			}
+		} else {
+			return nil
+		}
+	}
 }
 
 // GenerateChangelog generates the changelog between two tags for a repository
@@ -59,7 +93,7 @@ func GenerateChangelog(repoPath, fromTag, toTag string) error {
 	return nil
 }
 
-// SelectCommits prompts the user to select commits to include in the changelog
+// SelectCommits prompts the user to interactively select commits to include in the changelog
 func SelectCommits(repoPath, fromTag, toTag string) ([]string, error) {
 	// Get commit logs between the tags
 	cmd := exec.Command("git", "log", fmt.Sprintf("%s..%s", fromTag, toTag), "--oneline", "--pretty=format:%s")
@@ -71,25 +105,40 @@ func SelectCommits(repoPath, fromTag, toTag string) ([]string, error) {
 
 	commits := strings.Split(string(output), "\n")
 
-	fmt.Println("Select commits to include in changelog (Space to select, Enter when done):")
-	var selectedCommits []string
-	for _, commit := range commits {
-		if commit == "" {
-			continue
-		}
+	// Create a list of commit items for selection
+	items := make([]string, len(commits))
+	for i, commit := range commits {
+		items[i] = fmt.Sprintf("○ %s", commit)
+	}
 
-		fmt.Printf("○ %s", commit)
-		var input string
-		if _, err := fmt.Scanln(&input); err != nil {
-			// Log the error but continue - EOF or unexpected input shouldn't stop the process
-			fmt.Printf("Warning: error reading input: %v\n", err)
-		}
-		if input == " " {
-			selectedCommits = append(selectedCommits, commit)
-			fmt.Printf("● %s\n", commit)
-		} else {
-			fmt.Println()
-		}
+	// Create a prompt for interactive selection
+	prompt := promptui.Select{
+		Label: "Select commits to include in changelog",
+		Items: items,
+		Templates: &promptui.SelectTemplates{
+			Active:   "● {{ . | green }}",
+			Inactive: "○ {{ . }}",
+			Selected: "● {{ . | green }}",
+		},
+		Keys: &promptui.SelectKeys{
+			Prev:     promptui.Key{Code: promptui.KeyPrev, Display: "↑"},
+			Next:     promptui.Key{Code: promptui.KeyNext, Display: "↓"},
+			PageUp:   promptui.Key{Code: promptui.KeyBackward, Display: "←"},
+			PageDown: promptui.Key{Code: promptui.KeyForward, Display: "→"},
+			Search:   promptui.Key{Code: '/', Display: "/"},
+		},
+	}
+
+	// Run the prompt and get the selected indices
+	selectedIndices, _, err := prompt.RunCursorAt(0, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	// Extract the selected commits based on the indices
+	var selectedCommits []string
+	for _, index := range selectedIndices {
+		selectedCommits = append(selectedCommits, commits[index])
 	}
 
 	return selectedCommits, nil

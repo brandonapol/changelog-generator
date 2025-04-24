@@ -73,7 +73,7 @@ func main() {
 		}
 
 		// Prompt user to select commits
-		color.Cyan("Select commits to include in changelog (Space to select, Enter when done):")
+		color.Cyan("Select commits to include in changelog:")
 		selectedCommits, err := changelog.SelectCommits(repoPath, fromTag, toTag)
 		if err != nil {
 			color.Red("Error selecting commits for repository %s: %v\n", repoPath, err)
