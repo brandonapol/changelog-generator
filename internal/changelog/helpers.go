@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/manifoldco/promptui"
 )
 
 // GetTagsForRepo prompts the user to enter the from and to tags for a repository
@@ -93,7 +92,7 @@ func GenerateChangelog(repoPath, fromTag, toTag string) error {
 	return nil
 }
 
-// SelectCommits prompts the user to interactively select commits to include in the changelog
+// SelectCommits prompts the user to select commits to include in the changelog
 func SelectCommits(repoPath, fromTag, toTag string) ([]string, error) {
 	// Get commit logs between the tags
 	cmd := exec.Command("git", "log", fmt.Sprintf("%s..%s", fromTag, toTag), "--oneline", "--pretty=format:%s")
@@ -104,45 +103,80 @@ func SelectCommits(repoPath, fromTag, toTag string) ([]string, error) {
 	}
 
 	commits := strings.Split(string(output), "\n")
+	// Filter out empty commits
+	var filteredCommits []string
+	for _, commit := range commits {
+		if commit != "" {
+			filteredCommits = append(filteredCommits, commit)
+		}
+	}
+	commits = filteredCommits
 
-	// Create a list of commit items for selection
-	items := make([]string, len(commits))
+	// Track selection state for each commit
+	selected := make([]bool, len(commits))
+	currentIndex := 0
+
+	fmt.Println("Select commits to include in changelog:")
+	fmt.Println("Enter: n (next), p (previous), s (select/deselect), d (done)")
+
+	// Display initial view
+	displayCommits(commits, selected, currentIndex)
+
+	// Main selection loop
+	for {
+		var input string
+		fmt.Print("> ")
+		fmt.Scanln(&input)
+
+		switch input {
+		case "s", "S":
+			// Toggle selection of current commit
+			selected[currentIndex] = !selected[currentIndex]
+			displayCommits(commits, selected, currentIndex)
+		case "n", "N":
+			// Move to next commit
+			if currentIndex < len(commits)-1 {
+				currentIndex++
+			}
+			displayCommits(commits, selected, currentIndex)
+		case "p", "P":
+			// Move to previous commit
+			if currentIndex > 0 {
+				currentIndex--
+			}
+			displayCommits(commits, selected, currentIndex)
+		case "d", "D":
+			// Done with selection
+			var selectedCommits []string
+			for i, isSelected := range selected {
+				if isSelected {
+					selectedCommits = append(selectedCommits, commits[i])
+				}
+			}
+			return selectedCommits, nil
+		case "q", "Q":
+			// Quit
+			return nil, fmt.Errorf("selection cancelled")
+		default:
+			fmt.Println("Invalid command. Use n (next), p (previous), s (select/deselect), d (done)")
+		}
+	}
+}
+
+// displayCommits displays the commit list with selection status
+func displayCommits(commits []string, selected []bool, currentIndex int) {
 	for i, commit := range commits {
-		items[i] = fmt.Sprintf("○ %s", commit)
-	}
+		prefix := "○"
+		if selected[i] {
+			prefix = "●"
+		}
 
-	// Create a prompt for interactive selection
-	prompt := promptui.Select{
-		Label: "Select commits to include in changelog",
-		Items: items,
-		Templates: &promptui.SelectTemplates{
-			Active:   "● {{ . | green }}",
-			Inactive: "○ {{ . }}",
-			Selected: "● {{ . | green }}",
-		},
-		Keys: &promptui.SelectKeys{
-			Prev:     promptui.Key{Code: promptui.KeyPrev, Display: "↑"},
-			Next:     promptui.Key{Code: promptui.KeyNext, Display: "↓"},
-			PageUp:   promptui.Key{Code: promptui.KeyBackward, Display: "←"},
-			PageDown: promptui.Key{Code: promptui.KeyForward, Display: "→"},
-			Search:   promptui.Key{Code: '/', Display: "/"},
-		},
+		if i == currentIndex {
+			fmt.Printf("-> %s %s\n", prefix, commit)
+		} else {
+			fmt.Printf("   %s %s\n", prefix, commit)
+		}
 	}
-
-	// Run the prompt and get the selected indices
-	selectedIndex, _, err := prompt.RunCursorAt(0, 0)
-	if err != nil {
-		return nil, err
-	}
-
-	// Extract the selected commits based on the index
-	var selectedCommits []string
-	// Add the single selected commit (promptui.Select only returns a single selection)
-	if selectedIndex >= 0 && selectedIndex < len(commits) {
-		selectedCommits = append(selectedCommits, commits[selectedIndex])
-	}
-
-	return selectedCommits, nil
 }
 
 // UpdateChangelogFile updates the CHANGELOG.md file with the selected commits
