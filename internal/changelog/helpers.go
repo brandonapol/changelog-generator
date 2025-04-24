@@ -48,14 +48,13 @@ func GenerateChangelog(repoPath, fromTag, toTag string) error {
 	// Get commit logs between the tags
 	cmd := exec.Command("git", "log", fmt.Sprintf("%s..%s", fromTag, toTag), "--oneline", "--pretty=format:%s")
 	cmd.Dir = repoPath
-	output, err := cmd.Output()
+	_, err := cmd.Output()
 	if err != nil {
 		return err
 	}
 
-	commits := strings.Split(string(output), "\n")
-
-	// ... existing code ...
+	// TODO: Implement changelog generation logic
+	// This is a placeholder for actual implementation
 
 	return nil
 }
@@ -138,7 +137,7 @@ func UpdateReleaseNotesFile(releaseNotesFile string, selectedCommits []string) e
 	notesContainer := doc.Find(".notes-container")
 
 	// Create a new <div class="release-section"> element
-	releaseSection := goquery.NewDocumentFromReader(strings.NewReader(`
+	releaseSectionDoc, err := goquery.NewDocumentFromReader(strings.NewReader(`
 		<div class="release-section">
 			<div class="release-version">
 				<span>Version X.Y.Z</span>
@@ -147,7 +146,11 @@ func UpdateReleaseNotesFile(releaseNotesFile string, selectedCommits []string) e
 			<h3 class="change-category">Changes</h3>
 			<ul class="change-list"></ul>
 		</div>
-	`)).Find(".release-section")
+	`))
+	if err != nil {
+		return err
+	}
+	releaseSection := releaseSectionDoc.Find(".release-section")
 
 	// Update the version and release date
 	releaseSection.Find(".release-version span").First().SetText(fmt.Sprintf("Version %s", "X.Y.Z")) // Replace with actual version

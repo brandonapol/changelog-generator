@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/brandonapol/changelog-generator"
+	"github.com/brandonapol/changelog-generator/internal/changelog"
 	"github.com/fatih/color"
 )
 
