@@ -1,0 +1,33 @@
+ brandon-Virtual-Machine minikube repo  $ genChangelog 
+Enter the paths to your Git repositories.
+You can use relative paths:
+  - '.' for the current directory
+  - '../repo-name' for a sibling directory
+  Enter the name of your project: MyApp
+✔ Enter a repository path (or press Enter to finish): myapp-ui
+Enter a repository path (or press Enter to finish): myapp-ui
+Added repository: /home/brandon/repo/myapp-ui
+Enter a repository path (or press Enter to finish): myapp-service
+Added repository: /home/brandon/repo/myapp-service
+Enter a repository path (or press Enter to finish): 
+Generating changelog for repository: /home/brandon/repo/myapp-ui
+? Last tag was 9.17.5-3.0.6, do you want to create a new tag?? [y/N] n█
+Which tag do you want to use for the old tag? # Should scroll through all options here
+✔ 9.17.5-3.0.5
+Which tag do you want to use for the new tag?
+✔ 9.17.5-3.0.6
+Select commits to include in changelog (Space to select, Enter when done):
+○ chore: bingbong yeehaw # ASCII &#9675;	&#x25CB;
+● feat: PIR-89646 - Update Styling # ASCII &#9679;	&#x25CF;
+Adding commit: feat: PIR-89646 - Update Styling
+release-notes.html not found, skipping HTML generation
+Changelog generated successfully for repository: /home/brandon/repo/myapp-ui
+Generating changelog for repository: /home/brandon/repo/myapp-service
+✗ Last tag was 9.17.5-3.0.6, do you want to create a new tag?: 
+✔ 9.17.5-3.0.5
+✔ 9.17.5-3.0.6
+Select commits to include in changelog (Space to select, Enter when done):
+● feat: replace Opensearch with Redis for user preferences
+Adding commit: feat: replace Opensearch with Redis for user preferences
+release-notes.html not found, skipping HTML generation
+Changelog generated successfully for repository: /home/brandon/repo/myapp-service
