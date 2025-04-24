@@ -13,13 +13,23 @@ import (
 func main() {
 	color.Cyan("Enter the name of your project:")
 	var projectName string
-	fmt.Scanln(&projectName)
+	if _, err := fmt.Scanln(&projectName); err != nil {
+		color.Red("Error reading project name: %v", err)
+		os.Exit(1)
+	}
 
 	var repoPaths []string
 	for {
 		color.Cyan("Enter a repository path (or press Enter to finish):")
 		var repoPath string
-		fmt.Scanln(&repoPath)
+		if _, err := fmt.Scanln(&repoPath); err != nil {
+			// EOF or unexpected newline might indicate empty input
+			if err.Error() == "unexpected newline" || err.Error() == "EOF" {
+				break
+			}
+			color.Red("Error reading repository path: %v", err)
+			continue
+		}
 		if repoPath == "" {
 			break
 		}

@@ -11,19 +11,19 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-const (
-	conventionalCommitTypes = "fix|feat|build|ci|docs|perf|refactor|revert|style|test"
-)
-
 // GetTagsForRepo prompts the user to enter the from and to tags for a repository
 func GetTagsForRepo(repoPath string) (string, string, error) {
 	fmt.Printf("Enter tags for %s:\n", repoPath)
 
 	var fromTag, toTag string
 	fmt.Print("From tag: ")
-	fmt.Scanln(&fromTag)
+	if _, err := fmt.Scanln(&fromTag); err != nil {
+		return "", "", fmt.Errorf("failed to read from tag: %w", err)
+	}
 	fmt.Print("To tag: ")
-	fmt.Scanln(&toTag)
+	if _, err := fmt.Scanln(&toTag); err != nil {
+		return "", "", fmt.Errorf("failed to read to tag: %w", err)
+	}
 
 	// Validate tags exist
 	cmd := exec.Command("git", "rev-parse", fromTag)
@@ -80,7 +80,10 @@ func SelectCommits(repoPath, fromTag, toTag string) ([]string, error) {
 
 		fmt.Printf("○ %s", commit)
 		var input string
-		fmt.Scanln(&input)
+		if _, err := fmt.Scanln(&input); err != nil {
+			// Log the error but continue - EOF or unexpected input shouldn't stop the process
+			fmt.Printf("Warning: error reading input: %v\n", err)
+		}
 		if input == " " {
 			selectedCommits = append(selectedCommits, commit)
 			fmt.Printf("● %s\n", commit)
